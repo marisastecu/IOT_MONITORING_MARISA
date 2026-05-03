@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT Monitoring — Suhu & Kelembapan</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+  <!-- Library eksternal -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- CSS terpisah -->
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- Dekorasi latar -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- Kontainer Toast Notifikasi -->
+  <div id="toast-container"></div>
+
+  <div class="wrapper">
+
+    <!-- ========== TOP NAV ========== -->
+    <nav class="topnav">
+      <div class="nav-brand">
+        <div class="logo-ring">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1.5 8.5a14.25 14.25 0 0121 0M5.25 12.25a9.75 9.75 0 0113.5 0M9 16a5.25 5.25 0 016 0M12 20h.01"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>IoT Monitoring</h1>
+          <p>Suhu &amp; Kelembapan Real-Time · MQTT · ESP32 · DHT11</p>
+        </div>
+      </div>
+      <div class="nav-controls">
+        <button class="icon-btn" id="notif-btn" title="Toggle notifikasi">
+          🔔<span class="notif-badge" id="notif-badge"></span>
+        </button>
+        <button class="dark-btn" id="dark-toggle">🌙 Dark Mode</button>
+      </div>
+    </nav>
+
+    <!-- ========== CLOCK STRIP ========== -->
+    <div class="clock-strip">
+      <div>
+        <div class="clock-time" id="clock-time">00<span class="colon">:</span>00<span class="colon">:</span>00</div>
+        <div class="clock-date" id="clock-date">Memuat...</div>
+      </div>
+      <div class="clock-right">
+        <div class="uptime-label">⏱ Uptime Monitor</div>
+        <div class="uptime-val" id="uptime">00:00:00</div>
+      </div>
+    </div>
+
+    <!-- ========== STATUS + COUNT ========== -->
+    <div class="status-row">
+      <div class="status-pill">
+        <div class="dot disconnected" id="status-dot"></div>
+        <span id="status-text">Belum terhubung ke broker</span>
+      </div>
+      <div class="data-pill">
+        📊 Data diterima: <span class="data-count" id="data-count">0</span> kali
+      </div>
+    </div>
+
+    <!-- ========== TOMBOL AKSI ========== -->
+    <div class="actions">
+      <button class="btn btn-connect"    id="btn-connect">🔌 Connect</button>
+      <button class="btn btn-disconnect" id="btn-disconnect" disabled>⏏ Disconnect</button>
+      <button class="btn btn-sm" id="btn-export">📥 Export CSV</button>
+      <button class="btn btn-sm" id="btn-clear">🗑 Reset Data</button>
+    </div>
+
+    <!-- ========== SENSOR CARDS ========== -->
+    <div class="cards">
+
+      <!-- Kartu Suhu -->
+      <div class="card" id="card-suhu">
+        <div class="card-icon">🌡️</div>
+        <div class="card-label">Suhu Udara</div>
+        <div class="card-value" id="val-suhu">—<span class="card-unit">°C</span></div>
+        <div class="temp-badge" id="temp-badge">
+          <span class="badge-dot"></span>
+          <span id="badge-text">Menunggu data...</span>
+        </div>
+      </div>
+
+      <!-- Kartu Kelembapan -->
+      <div class="card" id="card-humid">
+        <div class="card-icon">💧</div>
+        <div class="card-label">Kelembapan</div>
+        <div class="card-value" id="val-humid">—<span class="card-unit">%</span></div>
+        <div class="humid-bar-wrap">
+          <div class="humid-bar" id="humid-bar"></div>
+        </div>
+        <div class="humid-label" id="humid-label">Relative Humidity</div>
+      </div>
+
+      <!-- Kartu LDR (Cahaya) -->
+      <div class="card" id="card-ldr">
+        <div class="card-icon">💡</div>
+        <div class="card-label">Sensor Cahaya (LDR)</div>
+        <div class="card-value" id="val-ldr" style="font-size:2rem;margin-top:6px;">—</div>
+        <div class="ldr-badge" id="ldr-badge">
+          <span>☀️</span><span id="ldr-text">Menunggu data...</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========== MINI STATS ========== -->
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-card-label">🔺 Suhu Maks</div>
+        <div class="stat-card-value" id="stat-max">—</div>
+        <div class="stat-card-sub">tertinggi sesi ini</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">🔻 Suhu Min</div>
+        <div class="stat-card-value" id="stat-min">—</div>
+        <div class="stat-card-sub">terendah sesi ini</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">📐 Avg Suhu</div>
+        <div class="stat-card-value" id="stat-avg-s">—</div>
+        <div class="stat-card-sub">rata-rata sesi ini</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">💦 Avg RH</div>
+        <div class="stat-card-value" id="stat-avg-h">—</div>
+        <div class="stat-card-sub">rata-rata sesi ini</div>
+      </div>
+    </div>
+
+    <!-- ========== RELAY CONTROL PANEL ========== -->
+    <div class="relay-section">
+      <div class="relay-header">
+        <span class="relay-title">🔁 Kontrol Relay</span>
+        <!-- Mode pill diupdate otomatis dari data ESP32 -->
+        <span class="mode-pill manual" id="mode-pill">🖐 MANUAL MODE</span>
+      </div>
+
+      <!-- 4 kartu relay -->
+      <div class="relay-grid">
+
+        <div class="relay-card" id="relay-card-0">
+          <div class="relay-info">
+            <span class="relay-name">⚡ Relay 1</span>
+            <span class="relay-status" id="relay-status-0">○ Mati</span>
+          </div>
+          <div class="relay-led" id="relay-led-0" onclick="toggleRelay(0)" title="Toggle Relay 1"></div>
+        </div>
+
+        <div class="relay-card" id="relay-card-1">
+          <div class="relay-info">
+            <span class="relay-name">⚡ Relay 2</span>
+            <span class="relay-status" id="relay-status-1">○ Mati</span>
+          </div>
+          <div class="relay-led" id="relay-led-1" onclick="toggleRelay(1)" title="Toggle Relay 2"></div>
+        </div>
+
+        <div class="relay-card" id="relay-card-2">
+          <div class="relay-info">
+            <span class="relay-name">⚡ Relay 3</span>
+            <span class="relay-status" id="relay-status-2">○ Mati</span>
+          </div>
+          <div class="relay-led" id="relay-led-2" onclick="toggleRelay(2)" title="Toggle Relay 3"></div>
+        </div>
+
+        <div class="relay-card" id="relay-card-3">
+          <div class="relay-info">
+            <span class="relay-name">⚡ Relay 4</span>
+            <span class="relay-status" id="relay-status-3">○ Mati</span>
+          </div>
+          <div class="relay-led" id="relay-led-3" onclick="toggleRelay(3)" title="Toggle Relay 4"></div>
+        </div>
+
+      </div>
+
+      <!-- Tombol bulk -->
+      <div class="relay-bulk-btns">
+        <button class="btn-relay-all btn-all-on"  id="btn-all-on"  disabled>✅ Semua ON</button>
+        <button class="btn-relay-all btn-all-off" id="btn-all-off" disabled>🔴 Semua OFF</button>
+      </div>
+    </div>
+
+    <!-- ========== GRAFIK ========== -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <span class="chart-title">📈 Grafik Real-Time</span>
+        <div class="chart-tabs">
+          <button class="chart-tab active" data-m="both">Keduanya</button>
+          <button class="chart-tab" data-m="suhu">Suhu</button>
+          <button class="chart-tab" data-m="humid">Kelembapan</button>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="myChart"></canvas>
+      </div>
+    </div>
+
+    <!-- ========== LOG ========== -->
+    <div class="log-section">
+      <div class="log-header">
+        <span class="log-title">📋 Riwayat Data</span>
+        <button class="log-clear" onclick="clearLog()">Hapus log</button>
+      </div>
+      <ul id="log-list">
+        <li><span class="log-time">—</span><span class="log-data">Menunggu koneksi MQTT...</span></li>
+      </ul>
+    </div>
+
+    <p class="last-update" id="last-update">Belum ada data yang diterima</p>
+
+    <footer>
+      UKK 2025/2026 · Sistem Informasi Jaringan dan Aplikasi
+      · ede492ef581f4ffdb49be789d64114bb.s1.eu.hivemq.cloud
+      · smk/iot/sensor
+    </footer>
+
+  </div><!-- /wrapper -->
+
+  <!-- JS terpisah (setelah DOM selesai) -->
+  <script src="script.js"></script>
+
+</body>
+</html>
