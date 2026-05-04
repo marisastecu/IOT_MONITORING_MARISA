@@ -140,8 +140,45 @@
     <div class="relay-section">
       <div class="relay-header">
         <span class="relay-title">🔁 Kontrol Relay</span>
-        <!-- Mode pill diupdate otomatis dari data ESP32 -->
         <span class="mode-pill manual" id="mode-pill">🖐 MANUAL MODE</span>
+      </div>
+
+      <!-- Tombol toggle mode AUTO / MANUAL -->
+      <div class="mode-toggle-wrap">
+        <div class="mode-toggle-group">
+          <button class="mode-btn mode-btn-manual active" id="btn-mode-manual">🖐 Manual</button>
+          <button class="mode-btn mode-btn-auto"         id="btn-mode-auto">⚡ Auto</button>
+        </div>
+        <div class="mode-info-box" id="mode-info-box">
+          <span id="mode-info-text">Mode Manual: klik toggle relay untuk menghidupkan/mematikan relay secara bebas.</span>
+        </div>
+      </div>
+
+      <!-- Tabel range AUTO MODE -->
+      <div class="auto-range-table" id="auto-range-table" style="display:none;">
+        <div class="range-title">📋 Aturan Auto Mode</div>
+        <div class="range-grid">
+          <div class="range-row" id="range-row-0">
+            <span class="range-relay">⚡ Relay 1</span>
+            <span class="range-temp">20°C – 25.9°C</span>
+            <span class="range-badge" id="range-badge-0">—</span>
+          </div>
+          <div class="range-row" id="range-row-1">
+            <span class="range-relay">⚡ Relay 2</span>
+            <span class="range-temp">26°C – 30.9°C</span>
+            <span class="range-badge" id="range-badge-1">—</span>
+          </div>
+          <div class="range-row" id="range-row-2">
+            <span class="range-relay">⚡ Relay 3</span>
+            <span class="range-temp">31°C – 35.9°C</span>
+            <span class="range-badge" id="range-badge-2">—</span>
+          </div>
+          <div class="range-row" id="range-row-3">
+            <span class="range-relay">⚡ Relay 4</span>
+            <span class="range-temp">≥ 36°C</span>
+            <span class="range-badge" id="range-badge-3">—</span>
+          </div>
+        </div>
       </div>
 
       <!-- 4 kartu relay -->
